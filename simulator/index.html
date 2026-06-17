@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BSides Leeds 2026 Badge Simulator</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app">
+    <section class="board-wrap">
+      <h1>BSides Leeds 2026 Badge Simulator</h1>
+      <canvas id="badgeCanvas" width="760" height="420" aria-label="Badge LED simulator"></canvas>
+    </section>
+
+    <section class="controls">
+      <div class="panel">
+        <h2>Wake Button</h2>
+        <div class="row">
+          <button id="wakeTapBtn">Tap (&lt;200ms)</button>
+          <button id="wakeShortBtn">Short Press</button>
+          <button id="wakeLongBtn">Long Press</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Touch Pads</h2>
+        <p>Hold pad buttons or keyboard keys: <strong>Q</strong>/<strong>W</strong>/<strong>E</strong> (left), <strong>I</strong>/<strong>O</strong>/<strong>P</strong> (right)</p>
+        <div class="pads-grid">
+          <button data-pad="0" class="pad left blue">L Blue (Q)</button>
+          <button data-pad="1" class="pad left red">L Red (W)</button>
+          <button data-pad="2" class="pad left green">L Green (E)</button>
+          <button data-pad="3" class="pad right green">R Green (I)</button>
+          <button data-pad="4" class="pad right red">R Red (O)</button>
+          <button data-pad="5" class="pad right blue">R Blue (P)</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Runtime</h2>
+        <div class="row">
+          <label for="speedRange">Speed</label>
+          <input id="speedRange" type="range" min="0.25" max="4" step="0.25" value="1">
+          <output id="speedOut">1.00x</output>
+        </div>
+        <div class="row">
+          <button id="resetBtn">Reset/Reboot</button>
+          <button id="pauseBtn">Pause</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Status</h2>
+        <ul id="statusList"></ul>
+      </div>
+    </section>
+  </main>
+
+  <script src="simulator.js"></script>
+</body>
+</html>

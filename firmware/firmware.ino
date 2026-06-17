@@ -1197,69 +1197,72 @@ uint8_t breath(uint16_t step, uint8_t r, uint8_t g, uint8_t b )
   return 30;
 }
 
-uint8_t timer(uint16_t step)
+// ---------------------------------------------------------------------------
+// Living owl: touch-reactive, blinking, sleepy eyes.
+//
+// Idle  -> warm amber eyes breathing slowly, with the occasional blink.
+// Poked -> snaps fully awake and bright on the touched side.
+// Bored -> if left alone it gets sleepy: dimmer, slower, longer blinks.
+//
+// Note: the main loop's showTouchedPads() already paints the touched eye a
+// solid colour, so a poke reads as the owl's eye flashing to attention on its
+// own. A directional "glance" would need the physical LED layout of the ring;
+// see the EYE_ROWS note below.
+// ---------------------------------------------------------------------------
+uint8_t livingOwl(uint16_t step)
 {
-  const uint8_t frameMs = 100;
+  static uint16_t blinkAt = 40;       // frame index of the next blink
+  static uint8_t awakeLevel = 30;     // brightness ceiling, drops when ignored
+  static uint16_t lastTouchStep = 0;  // frame index of the last interaction
 
-  uint16_t multiplier = 63; // tweak for timing accuracy
-
-  const uint8_t eyeLedCount = 9;
-  const uint8_t totalMinutes = 9;
-
-  const uint16_t preFlashSteps = 3000 / frameMs;      // 3 seconds
-  const uint16_t halfSecondSteps = 500 / frameMs;     // 0.5 seconds
-  const uint16_t minuteSteps = multiplier * eyeLedCount;
-  const uint16_t timerSteps = minuteSteps * totalMinutes;
-  const uint16_t finishedSteps = 5000 / frameMs;      // 5 seconds
-
-  const uint16_t totalSteps = preFlashSteps + timerSteps + finishedSteps;
-  step = step % totalSteps;
-
-  // Clear both eyes.
-  setAllLeds(0, 0, 0);
-
-  // First 3 seconds: flash on/off every half second.
-  if (step < preFlashSteps) {
-    const bool flashOn = ((step / halfSecondSteps) % 2) == 0;
-
-    if (flashOn) {
-      setAllLeds(10, 0, 0);
-    }
-
-    ledStrip.show();
-    return frameMs;
+  if (getPressedTouchMask() != 0) {
+    lastTouchStep = step;
+    awakeLevel = 30;                   // a poke wakes the owl fully
   }
 
-  step -= preFlashSteps;
-
-  // Timer phase.
-  if (step < timerSteps) {
-    const uint8_t completedMinutes = step / minuteSteps;
-    const uint16_t currentMinuteStep = step % minuteSteps;
-
-    uint8_t rightEyeLedsLit = (currentMinuteStep / multiplier) + 1;
-
-    if (rightEyeLedsLit > eyeLedCount) {
-      rightEyeLedsLit = eyeLedCount;
-    }
-
-    // Left eye: one light per completed minute.
-    for (uint8_t ledIndex = 0; ledIndex < completedMinutes; ++ledIndex) {
-      ledStrip.setPixelColor(ledIndex, 10, 0, 0);
-    }
-
-    // Right eye: progress through the current minute.
-    for (uint8_t ledIndex = 0; ledIndex < rightEyeLedsLit; ++ledIndex) {
-      setRightEyeLed(ledIndex, 10, 0, 0);
-    }
-
-    ledStrip.show();
-    return frameMs;
+  // Drift toward sleep when left alone (~60 ms per frame).
+  if ((uint16_t)(step - lastTouchStep) > 150 && awakeLevel > 6) {
+    awakeLevel--;
   }
 
-  // Finished phase: both eyes green for 5 seconds.
-  setAllLeds(0, 30, 0, true);
-  return frameMs;
+  // Blink: shut the eyes for a moment at a pseudo-random cadence. A sleepier
+  // owl (low awakeLevel) blinks for longer and waits longer between blinks.
+  if (step >= blinkAt) {
+    setAllLeds(COLOR_OFF, true);
+    blinkAt = step + 24 + (randomEight() << 2) + (uint16_t)(30 - awakeLevel);
+    return 120;
+  }
+
+  // Breathing glow. Triangle 0..31 from the low bits, scaled into 6..awakeLevel.
+  uint8_t phase = step & 0x3F;
+  if (phase & 0x20) {
+    phase = 63 - phase;
+  }
+  const uint8_t level = 6 + (uint8_t)(((uint16_t)phase * (awakeLevel - 6)) >> 5);
+
+  setAllLeds(level, level >> 1, 0, true);   // warm amber
+  return 60;
+}
+
+
+// ---------------------------------------------------------------------------
+// Light-painting #1: the "ribbon".
+//
+// A colour that travels in time, so wherever your hand carries the badge it
+// lays down a flowing rainbow ribbon in a long exposure. It is NOT trying to
+// register an image, so ANY wave speed works - slow, fast, frantic, circles.
+// The two eyes run opposite phases for a twin-ribbon look.
+// ---------------------------------------------------------------------------
+uint8_t lightRibbon(uint16_t step)
+{
+  uint8_t phase = step & 0x3F;                 // 0..63
+  const uint8_t up = phase < 32 ? phase : 63 - phase;   // triangle 0..31
+  const uint8_t down = 31 - up;
+
+  setLeftEye(up << 1, 0, down << 1);           // magenta <-> blue ribbon
+  setRightEye(0, up << 1, down << 1);          // cyan    <-> blue ribbon
+  ledStrip.show();
+  return 8;
 }
 
 
@@ -1291,7 +1294,9 @@ int runAnimationMode(uint8_t mode, uint16_t step)
     case 9:
       return spinMode(step, 1, 0, 3, 0,0,3,75);
     case 10:
-      return timer(step);
+      return livingOwl(step);
+    case 11:
+      return lightRibbon(step);
     default:
       return -1;
   }
